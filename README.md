@@ -1,105 +1,178 @@
-
 # QueryPilot — AI SQL Query Assistant
 
-An AI-powered SQL assistant that converts natural language questions into SQL queries, executes them against a database, and presents the results in an easy-to-understand format.
+An AI-powered SQL assistant that converts natural-language questions into SQL queries, executes them against a real SQLite database, and presents results in a polished dark-themed dashboard.
 
 Built for the **TCS Hackathon**.
 
-## 🚀 Project Overview
-
-QueryPilot allows users to interact with databases using plain English instead of writing SQL manually. It uses Google Gemini AI to generate SQL queries based on the actual database schema and displays the results in a user-friendly interface.
+---
 
 ## ✨ Features
 
-- Natural language to SQL conversion
-- AI-powered query generation using Gemini
-- Database schema awareness
-- SQLite query execution
-- Read-only query validation
-- Interactive query results table
-- Sample database for demonstration
-- Error handling and loading indicators
-- Responsive user interface
+| Feature | Detail |
+|---|---|
+| Natural language → SQL | Google Gemini generates SQL from plain English |
+| Schema-aware prompts | Gemini receives the actual DDL before generating |
+| Safe read-only execution | SQLite authorizer + URI read-only mode + keyword validation |
+| One-shot AI correction | Invalid SQL is corrected automatically (once) |
+| Real results | Only actual database rows are displayed |
+| Polished dashboard | Dark-themed, responsive, hackathon-ready UI |
+| Copy-to-clipboard | One-click SQL copy |
+| Health endpoint | Live API key and database status in the navbar |
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Python, Flask
-- **Database:** SQLite
-- **AI:** Google Gemini API
-- **Frontend:** HTML, CSS, JavaScript
-- **SDK:** Google Gen AI SDK
+- **Backend:** Python 3.13, Flask 3.x, Flask-CORS
+- **Database:** SQLite (built-in `sqlite3`)
+- **AI:** Google Gemini via `google-genai` SDK
+- **Frontend:** HTML5, CSS3, Vanilla JavaScript
+
+---
 
 ## 📁 Project Structure
 
-    sql-assistant/
-    ├── backend/
-    │   ├── app.py
-    │   ├── requirements.txt
-    │   └── .env.example
-    ├── .gitignore
-    └── README.md
+```
+sql-assistant/
+├── backend/
+│   ├── app.py              ← Flask application (entry point)
+│   ├── database.py         ← DB init, schema, safe query execution
+│   ├── gemini_client.py    ← Gemini AI wrapper
+│   ├── requirements.txt
+│   ├── .env.example        ← Copy to .env and add your key
+│   ├── school.db           ← SQLite database (auto-created, git-ignored)
+│   ├── templates/
+│   │   └── index.html      ← Frontend dashboard
+│   └── venv/               ← Virtual environment (git-ignored)
+├── .gitignore
+└── README.md
+```
+
+---
 
 ## ⚙️ Getting Started
 
 ### Prerequisites
 
 - Python 3.10 or later
-- Git
-- A Google Gemini API key
+- A [Google Gemini API key](https://aistudio.google.com/app/apikey)
 
-### 1. Clone the Repository
+### 1. Clone the repository
 
-    git clone https://github.com/midhunmanesh01-code/sql-assistant.git
-    cd sql-assistant
+```powershell
+git clone https://github.com/midhunmanesh01-code/sql-assistant.git
+cd sql-assistant
+```
 
-### 2. Create a Virtual Environment
+### 2. Activate the virtual environment
 
-    cd backend
-    python -m venv venv
+```powershell
+cd backend
+.\\venv\\Scripts\\Activate.ps1
+```
 
-Activate it on Windows PowerShell:
+> If you see a policy error, run first:
+> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-    .\venv\Scripts\Activate.ps1
+### 3. Install dependencies (if needed)
 
-### 3. Install Dependencies
+```powershell
+pip install -r requirements.txt
+```
 
-    pip install -r requirements.txt
+### 4. Configure the API key
 
-### 4. Configure Environment Variables
+```powershell
+Copy-Item .env.example .env
+# Then open .env and replace the placeholder with your real Gemini API key
+notepad .env
+```
 
-Create a `.env` file inside the `backend/` directory.
+Your `.env` should contain:
 
-Add the following configuration:
+```
+GEMINI_API_KEY=AIza...your_key_here
+GEMINI_MODEL=gemini-2.5-flash
+```
 
-    GEMINI_API_KEY=your_gemini_api_key_here
-    GEMINI_MODEL=gemini-2.5-flash
+### 5. Run the application
 
-Replace the placeholder with your own Gemini API key.
+```powershell
+python app.py
+```
 
-**Never commit your `.env` file or expose your API key publicly.**
+Open **http://127.0.0.1:5000** in your browser.
 
-### 5. Run the Application
+---
 
-    python app.py
+## 🔌 API Endpoints
 
-Open the application in your browser:
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Serves the frontend |
+| `GET` | `/api/health` | Returns API key and DB status |
+| `GET` | `/api/schema` | Returns table/column metadata |
+| `POST` | `/api/query` | Body: `{"question":"..."}` → SQL + results |
 
-http://127.0.0.1:5000
+### `/api/query` response
+
+```json
+{
+  "success": true,
+  "question": "Show all CSE students",
+  "sql": "SELECT ...",
+  "explanation": "This query retrieves ...",
+  "columns": ["student_id", "name", "department", "year", "email"],
+  "rows": [[1, "Aarav Sharma", "CSE", 2, "aarav@college.edu"], ...],
+  "row_count": 6,
+  "truncated": false
+}
+```
+
+---
+
+## 🗃️ Sample Database
+
+The database (`school.db`) is created automatically on first run with three tables:
+
+- **students** — 15 records across CSE, ECE, IT, MECH departments
+- **courses** — 10 courses with credits
+- **marks** — 45+ marks records with foreign keys
+
+Seeding is idempotent — re-running the app never duplicates records.
+
+---
 
 ## 🔐 Security
 
-- Store API keys in environment variables.
-- Restrict SQL execution to validated, read-only queries.
-- Limit the number of returned rows.
-- Never expose API credentials in frontend code.
-- Do not execute untrusted SQL without validation.
+- API keys are stored in `.env` only — never in code, logs, or responses.
+- All SQL is executed through a **read-only SQLite URI connection**.
+- A custom **SQLite authorizer** denies all write/DDL operations at the engine level.
+- Keyword validation rejects INSERT, UPDATE, DELETE, DROP, ALTER, ATTACH, PRAGMA, etc.
+- Multiple statements (`;` separator) are rejected.
+- SQL comments (`--`, `/*`) are rejected.
+- Results are capped at **100 rows** with a **10-second timeout**.
+- Table access is restricted to the `students`, `courses`, and `marks` whitelist.
+- All data is rendered via `textContent` (no `innerHTML`) to prevent XSS.
+
+---
+
+## 🧯 Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Navbar shows "API key missing" | Add `GEMINI_API_KEY` to `backend/.env` |
+| Navbar shows "Backend unavailable" | Make sure `python app.py` is running |
+| "Only SELECT statements are permitted" | The AI generated a non-SELECT — retry your question |
+| `ModuleNotFoundError` | Run `pip install -r requirements.txt` inside the venv |
+| PowerShell execution policy error | `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` |
+
+---
 
 ## 👥 Team
 
-Developed collaboratively for the TCS Hackathon.
+Developed for the **TCS Hackathon**.
 
 ## 📌 Project Status
 
-🚧 **In Development**
-
-Features and documentation will be updated as development progresses.
+✅ **Working MVP** — all core features implemented and tested.
